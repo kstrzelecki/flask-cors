@@ -28,7 +28,8 @@ ACL_MAX_AGE = 'Access-Control-Max-Age'
 
 def cross_origin(origins=None, methods=None, headers=None,
                  supports_credentials=False, max_age=None, send_wildcard=True,
-                 always_send=True, automatic_options=True):
+                 always_send=True, automatic_options=True,
+                 origins_single=None):
     '''
     This function is the decorator which is used to wrap a Flask route with.
     In the simplest case, simply use the default parameters to allow all
@@ -76,8 +77,13 @@ def cross_origin(origins=None, methods=None, headers=None,
         the Content-Type header.
     :type automatic_options: bool
 
+    :param origins_single: If True, send back the request's `Origin` header
+        instead of a list of allowed origins. Default: False.
+    :type origins_single: bool
+
     '''
     _origins = origins
+    _origins_single = origins_single
     methods = methods or ['GET', 'HEAD', 'POST', 'OPTIONS', 'PUT']
     methods = ', '.join(sorted(x for x in methods)).upper()
 
@@ -94,6 +100,9 @@ def cross_origin(origins=None, methods=None, headers=None,
             origins = _origins or current_app.config.get('CORS_ORIGINS', '*')
             origins_str = str(origins)
             wildcard = origins_str == '*'
+            origins_single = _origins_single \
+                    if _origins_single is not None else \
+                    current_app.config.get('CORS_ORIGINS_SINGLE', False)
 
             if(not isinstance(origins, string_types)
                     and isinstance(origins, collections.Iterable)):
@@ -128,7 +137,9 @@ def cross_origin(origins=None, methods=None, headers=None,
                 else:
                     req_origin = request.headers.get('Origin', '*')
                     resp.headers[ACL_ORIGIN] = req_origin
-
+            elif origins_single:
+                req_origin = request.headers.get('Origin', '*')
+                resp.headers[ACL_ORIGIN] = req_origin
             # If not 'wildcard', send the string-joined-form of the
             # origins header
             else:
